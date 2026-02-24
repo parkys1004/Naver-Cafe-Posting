@@ -265,11 +265,27 @@ async function startServer() {
   // Auth Endpoints
   app.get('/api/auth/naver/url', (req, res) => {
     const clientId = process.env.NAVER_CLIENT_ID;
-    const redirectUri = `${process.env.APP_URL}/api/auth/naver/callback`;
+    
+    // Robust Redirect URI construction
+    let baseUrl = process.env.APP_URL;
+    if (!baseUrl) {
+      // Fallback for local dev if APP_URL is missing
+      const protocol = req.protocol;
+      const host = req.get('host');
+      baseUrl = `${protocol}://${host}`;
+    }
+    
+    // Remove trailing slash if present
+    if (baseUrl.endsWith('/')) {
+      baseUrl = baseUrl.slice(0, -1);
+    }
+
+    const redirectUri = `${baseUrl}/api/auth/naver/callback`;
     const state = Math.random().toString(36).substring(7);
 
     if (!clientId) {
-      return res.status(500).json({ error: 'NAVER_CLIENT_ID is not configured' });
+      console.error('NAVER_CLIENT_ID is missing in environment variables');
+      return res.status(500).json({ error: 'Server configuration error: NAVER_CLIENT_ID is missing' });
     }
 
     const authUrl = `https://nid.naver.com/oauth2.0/authorize?response_type=code&client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&state=${state}`;
